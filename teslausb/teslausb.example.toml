@@ -1,0 +1,113 @@
+# TeslaUSB Neo Configuration
+# Copy this file to /data/teslausb.toml and edit with your settings.
+# Only uncomment the sections you need — all values have sensible defaults.
+
+# ─── WiFi ───────────────────────────────────────────────
+[wifi]
+home_ssid = "YourNetworkName"
+# home_password provisions a NetworkManager connection at boot. REQUIRED on the
+# Buildroot image (it has no Raspberry Pi Imager step to seed WiFi). On the Pi
+# OS path you can leave it blank if you already set WiFi in Raspberry Pi Imager.
+home_password = "YourWiFiPassword"
+# hidden = true            # Set if your home SSID does not broadcast
+
+# Uncomment to enable AP hotspot when away from home WiFi:
+# [wifi.ap]
+# enabled = true
+# ssid = "teslausb"
+# password = "changeme123"
+
+# WiFi watchdog: monitors connectivity and reboots if home SSID is visible
+# but connection fails repeatedly. Enabled by default.
+# [wifi.watchdog]
+# enabled = true
+# interval_seconds = 60   # Check every 60 seconds
+# max_failures = 5         # Reboot after 5 consecutive failures
+
+# ─── Archive ────────────────────────────────────────────
+[archive]
+system = "cifs"          # cifs, rsync, rclone, nfs
+
+# Free space reserve in MB. Archive is skipped if free space drops below
+# this threshold. Default: 10240 (10 GiB). Tune for large NVMe drives.
+# free_space_reserve_mb = 10240
+
+# Copy a summary log (teslausb.log) to the archive server after each session.
+# archive_logs = true
+
+# Delete event clips (SavedClips / SentryClips / TrackMode) from the SD card once
+# they are confirmed on the archive server, so the card does not fill with clips
+# the car never removes itself. RecentClips are never deleted here — the car
+# manages that rolling buffer on its own. Default: true. Set false to keep a
+# local copy on the card until the car recycles the space.
+# delete_after_archive = false
+
+# Media sync: mirror these folders FROM your server TO the USB partitions.
+# Place files in Music/, LightShow/, or Boombox/ on your archive share.
+# sync_music = true      # Sync Music/ folder to music partition
+# sync_lightshow = true  # Sync LightShow/ folder (.fseq + .mp3/.wav pairs)
+# sync_boombox = true    # Sync Boombox/ folder (.mp3/.wav custom horn sounds)
+#
+# To present the music drive to the car you must ALSO enable the LUN:
+#   [gadget]
+#   music_drive = true
+
+# CIFS/SMB (Windows share, Synology, etc.)
+[cifs]
+server = "192.168.1.100"
+share = "TeslaCam"
+user = "tesla"
+password = "your_password"
+# path = "TeslaCam"      # Subfolder within the share for dashcam clips.
+                         # Set path = "" to write to the share root. Honored by
+                         # all backends (cifs, rsync, rclone, nfs).
+# music_share = "MusicShare"   # Optional: pull music from a DEDICATED SMB share
+                         # instead of a Music/ subfolder of the archive share.
+                         # Same server + credentials as above. Accepts "<share>"
+                         # or "<share>/<subfolder>". Its contents mirror to the
+                         # car's Music/ folder. Needs sync_music = true and
+                         # gadget.music_drive = true. (Mirrors upstream teslausb's
+                         # MUSIC_SHARE_NAME.)
+
+# Uncomment for rsync over SSH instead:
+# [archive]
+# system = "rsync"
+# [rsync]
+# server = "192.168.1.100"
+# user = "tesla"
+# path = "/mnt/nas/TeslaCam"
+
+# Uncomment for rclone (Google Drive, S3, Dropbox, etc.):
+# [archive]
+# system = "rclone"
+# [rclone]
+# path = "gdrive:TeslaCam"
+
+# Uncomment for NFS:
+# [archive]
+# system = "nfs"
+# [nfs]
+# server = "192.168.1.100"
+# share = "/exports/teslacam"
+
+# ─── Web UI auth (optional, recommended) ───────────────
+# The web UI on port 80 can browse, download, AND DELETE footage. Set both to
+# require HTTP basic auth; leave blank and anyone on your network has access.
+# [web]
+# username = "admin"
+# password = "change_me"
+
+# ─── Notifications (optional) ──────────────────────────
+# Uncomment to get push notifications:
+# [notify.ntfy]
+# url = "https://ntfy.sh/my-teslausb-topic"
+
+# ─── USB drives presented to the car (optional) ────────
+# The cam drive (TeslaCam) is ALWAYS presented. The music and lightshow drives
+# are OFF by default and opt-in (mirrors upstream teslausb). Provisioning
+# pre-creates each drive's car-recognized root folder (Music, LightShow,
+# Boombox) so an enabled drive is never a blank "format candidate" the car can
+# grab and record dashcam onto instead of your cam drive. Enable and reboot:
+# [gadget]
+# music_drive = true
+# lightshow_drive = true

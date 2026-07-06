@@ -1,0 +1,38 @@
+# TeslaSync용 teslausb-neo 설정 초안
+# 보드 셋업 후 Pi의 /data/teslausb.toml 에 이 내용을 넣고 <...> 값을 채운다.
+# 우리 설계: NAS 없음. 차 안에서 Pi가 AP 핫스팟 → 폰이 접속해 영상 다운로드(폰=백업).
+
+# ─── WiFi ───────────────────────────────────────────────
+# 집 WiFi: 최초 셋업/SSH 접속용 + 집에 오면 인터넷 연결용. (없어도 동작은 함)
+[wifi]
+home_ssid = "<집 WiFi 이름>"
+home_password = "<집 WiFi 비번>"
+
+# AP 핫스팟: 집 WiFi가 안 잡히면(=차 안) Pi가 이 SSID로 핫스팟을 켠다.
+# 폰이 여기 접속해서 영상을 받는다. ← 우리 설계의 핵심
+[wifi.ap]
+enabled = true
+ssid = "TeslaSync-Pi"
+password = "<강한 비번 12자+>"      # Android Config.kt 의 PI_PASSPHRASE 와 동일하게
+
+# ─── 웹 UI / API (포트 80) ──────────────────────────────
+# 폰(또는 브라우저)이 여기로 영상 열람·다운로드. 우리 Android 앱이 이 API를 호출.
+# 비번 꼭 걸기 — 안 그러면 같은 네트워크 아무나 영상 접근/삭제 가능.
+[web]
+username = "admin"
+password = "<웹 비번>"
+
+# ─── Archive (NAS 백업) — 우리는 안 씀 ──────────────────
+# 우리 설계는 NAS가 없고 폰이 백업이라 archive 섹션을 비워둔다.
+# ⚠️ 검증필요: neo가 archive 백엔드 없이도 도는지 보드에서 확인.
+#   - 그냥 잘 돌면(SD에 쌓이고 AP+웹으로 다운로드 가능) → 이대로 OK
+#   - archive 필수라고 에러나면 → 폴백으로 집 PC/폰에 작은 SMB 공유 하나 띄워 cifs로 지정
+#
+# delete_after_archive: archive 안 쓰면 SD에서 자동삭제 안 됨(=폰이 받을 때까지 남음, 좋음).
+# RecentClips는 어차피 차가 알아서 순환 삭제. 이벤트클립(센트리/저장)만 쌓이는데
+# 폰이 받아가면 되고, 넘치면 우리 앱/수동으로 정리.
+
+# ─── 알림 (선택) ───────────────────────────────────────
+# 동기화/오류 푸시 받고 싶으면 ntfy 토픽 지정:
+# [notify.ntfy]
+# url = "https://ntfy.sh/<나만의-토픽>"
