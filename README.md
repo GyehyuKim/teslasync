@@ -1,76 +1,99 @@
 # TeslaSync
 
-Tesla 대시캠/센트리 영상 중 원하는 클립을, 원할 때 골라서 Android 폰으로 가져오는
-DIY 프로젝트. 자동 전체 동기화가 아니라 **"이벤트 목록 보고 → 카메라 하나 골라서
-→ 그 클립만 다운로드"** 방식이다.
+**Pull Tesla dashcam clips to your phone over WiFi — from a tiny Linux board that pretends to be the car's USB drive.**
 
-**BT = 트리거, WiFi = 데이터 파이프.** 블루투스 실효 대역폭(~1-2 Mbps)으로는
-1080p 클립(분당 수십 MB) 전송이 불가능해서, 근접 감지는 BLE로 하고 실제 영상
-전송은 WiFi로 한다. 설계 근거는 [PLAN.md](PLAN.md), 전체 개발 과정(부품 목록,
-막힌 지점, 버그, 팁)은 [DEVLOG.md](DEVLOG.md)에 정리돼 있다.
+A Tesla saves dashcam and Sentry footage onto a USB stick you have to physically unplug and carry to a computer. TeslaSync replaces that stick with a low-power single-board computer (Radxa Zero 3W) that **emulates a USB drive** to the car, records exactly like a real stick would, and then serves the footage over its own WiFi — so you browse and download the clip you actually want from your phone, without ever touching the hardware again.
 
-## 아키텍처
+> A personal side project about taking a "vibe coding" workflow all the way into real hardware, Linux USB internals, and a physical Tesla. **Everything on the device side is working and validated in an actual car** — the phone app is the remaining piece.
+
+---
+
+## Status
+
+| Component | Status |
+|---|---|
+| USB drive emulation — car recognizes it as a real dashcam stick | ✅ **Verified on a real Tesla** |
+| Continuous recording · manual Save · Sentry events | ✅ Recording to the board |
+| Snapshot-based archiving + free-space management | ✅ Working |
+| Retrieval over WiFi (web browser + SMB) | ✅ Working |
+| Mobile-first dark web UI (touch targets, WCAG contrast) | ✅ Working |
+| Android companion app (BLE proximity trigger + one-tap download) | 🚧 In progress |
+
+---
+
+## How it works
 
 ```
-Tesla USB 포트
-   │  (USB-A to USB-C 케이블, 데이터+전원 겸용)
-Radxa Zero 3W (OTG 포트)
+Tesla USB port
+   │  (USB-A ↔ USB-C cable — data + power)
+Radxa Zero 3W  ── plugged into the OTG port
    │
-   ├─ USB gadget mode — microSD 안의 큰 파일(cam_disk.bin)을 진짜 USB 드라이브처럼
-   │    보이게 함 → Tesla가 여기에 TeslaCam/{SavedClips,SentryClips,RecentClips} 기록
-   ├─ teslausb (marcone/teslausb) — USB gadget 설정 + 클립 아카이빙 데몬
-   │    └─ 로컬 Samba 서버로 "이미 완성된" 클립만 안전하게 복사
-   └─ nginx + fancyindex — 웹 브라우저로 클립 목록 확인·다운로드
-        (+ teslausb 내장 비디오 뷰어, 아직 재생 안 되는 버그 있음 — DEVLOG.md 참고)
+   ├─ USB gadget mode: a large file on the microSD is exposed as a fake
+   │    USB drive, so the car writes TeslaCam/{SavedClips,SentryClips,RecentClips}
+   │    to it — believing it's an ordinary memory stick
+   │
+   ├─ teslausb: sets up the gadget + safely archives finished clips
+   │    (snapshots the disk so it never reads a file the car is mid-write on)
+   │
+   └─ nginx web UI: browse & download clips from any phone on the board's WiFi
 
-폰 (또는 PC) — 같은 WiFi에 접속해서 SMB/웹으로 클립 다운로드
+Phone / laptop  ── same WiFi ── browse the event list, pull the one clip you want
 ```
 
-보드는 **Radxa Zero 3W**(Pi Zero 2 W가 전 세계 품귀라 대체, 저전력이라 여름철
-차량 실내 발열에도 적합). USB 에뮬레이션·아카이빙은 `marcone/teslausb`를 그대로
-쓰고, RK3566(Rockchip)에 맞는 USB gadget overlay만 직접 확인·적용했다.
+**Why WiFi and not Bluetooth?** BLE tops out around 1–2 Mbps. A single 1080p minute is tens of MB (this car pushes ~266 MB/min across 6 cameras). So Bluetooth is used only as a *proximity trigger* ("I got in the car"); the actual video moves over WiFi.
 
-## 현재 상태
+---
 
-- ✅ USB gadget mode 동작 확인 (개발 PC에서 실제 "CAM" FAT32 드라이브로 인식)
-- ✅ teslausb 설치 완료, 로컬 Samba archive로 클립 다운로드까지 실제 검증
-- ✅ 웹 UI(fancyindex) 다크테마 + 터치타겟/대비 수정
-- ⬜ **실차 테스트 미완료** — OTG 케이블을 실제 Tesla USB 포트에 연결해 인식되는지 확인 필요
-- ⬜ Android 앱은 CDM 페어링 골격만 완료, 클립 브라우저 UX(이벤트 목록 → 카메라
-  선택 → 다운로드)에 맞춰 `SyncService` 재작성 필요 — 지금은 폰 브라우저로
-  SMB/웹 UI 접속이 임시 대체 수단
-- ⬜ teslausb 내장 비디오 뷰어가 테스트 데이터로는 재생 안 되는 버그 미해결
+## Why it wasn't trivial (the interesting part)
 
-상세 경과는 [DEVLOG.md](DEVLOG.md)의 "알려진 이슈 / 다음 단계" 참고.
+This is where the project stopped being a config-file exercise and turned into real debugging:
 
-## 구성 요소
+- **Ran the stack on an unsupported board.** The base project ([`marcone/teslausb`](https://github.com/marcone/teslausb)) targets the Raspberry Pi. With the Pi Zero 2 W globally out of stock, I switched to a **Radxa Zero 3W (Rockchip RK3566)** — a board with *no recorded successful teslausb setup.* No copy-paste guide existed.
+- **Brought up USB gadget mode from first principles.** Confirmed the SoC's USB controller (dwc3, not dwc2) and the exact device-tree node by cross-referencing the **board schematics against the Linux kernel source**, then enabled peripheral mode via an Armbian device-tree overlay — before ever touching the hardware.
+- **Fixed a crash that only happened after reboot.** Samba kept dying on boot because teslausb makes the root filesystem read-only (for SD-card longevity). Root-caused it to `secrets.tdb` write failures and relocated Samba's state onto the writable partition with bind mounts.
+- **Diagnosed a boot-time USB race from logs.** The car occasionally showed "no storage device" at power-on. Traced it in `archiveloop` logs to the gadget flapping (connect → disconnect for fsck/archive → reconnect) during boot — and the real-car test confirmed it's cosmetic: recording continued uninterrupted (132 segments across a drive) once the drive re-stabilized.
+- **Validated on a real Tesla.** Continuous recording, manual save, and Sentry all confirmed writing to the emulated drive, then retrieved over WiFi.
 
-- [`pi/RADXA_SETUP.md`](pi/RADXA_SETUP.md) — Radxa 보드 셋업 전체 절차(OS 굽기,
-  WiFi, USB gadget overlay, teslausb 설치, 버그 수정 기록)
-- `pi/ble_advertise.sh`, `pi/test_coexistence.sh` — BLE 광고 + AP/BLE 무선 공존
-  테스트 스크립트 (아직 Radxa에서 실행 검증 전)
-- `android/` — Android 앱 골격 (CompanionDeviceManager 페어링 완료,
-  `SyncService`는 옛 "자동 풀싱크" UX 기준이라 재작성 예정)
-- [`PLAN.md`](PLAN.md) — 설계 근거와 확정 사항
-- [`PROGRESS.md`](PROGRESS.md) — 진행 로그, 실측 데이터(대시캠 파일 포맷·비트레이트 등)
-- [`DEVLOG.md`](DEVLOG.md) — 부품 목록부터 막힌 지점, 버그, 팁까지 전체 개발 기록
+Full build story, decisions, and debugging write-ups (in Korean) are in [`DEVLOG.md`](DEVLOG.md).
 
-## 다음 할 일
+---
 
-1. Android 앱 `SyncService`를 클립 브라우저 UX + 파일서버 API에 맞춰 재작성
-   (지금은 폰 브라우저로 SMB/웹 UI 접속이 임시 대체 수단)
-2. 웹 UI가 RecentClips(상시 녹화)까지 나열하도록 개선
-3. teslausb 내장 비디오 뷰어 버그 — 실차 데이터로도 재현되면 디버깅
+## Tech & domains touched
 
-## 기반·크레딧
+`Linux (Armbian)` · `systemd` · **`USB gadget mode (configfs / dwc3)`** · `device-tree overlays` · `Samba/CIFS on a read-only root` · `nginx + fancyindex` · `Bash` · **`Android / Kotlin`** · `CompanionDeviceManager (BLE proximity)` · `WifiNetworkSpecifier` · `MediaStore`
 
-- **[marcone/teslausb](https://github.com/marcone/teslausb)** — USB 가젯 에뮬레이션과
-  클립 아카이빙의 핵심. 이 프로젝트는 teslausb를 **수정·재배포하지 않고** 그 위에
-  Radxa Zero 3W 셋업·Android 앱·웹 UI를 얹은 것입니다. teslausb는 별도로 설치해야
-  합니다(설치 절차는 [`pi/RADXA_SETUP.md`](pi/RADXA_SETUP.md) 참고).
-- Android CompanionDeviceManager 예제: `android/platform-samples`
+---
 
-## 라이선스
+## Repository
 
-이 저장소의 코드(Android 앱, `pi/` 스크립트, 문서)는 [MIT License](LICENSE)로 배포됩니다.
-teslausb 등 별도 프로젝트는 각자의 라이선스를 따릅니다.
+| Path | What |
+|---|---|
+| [`README.md`](README.md) | You are here |
+| [`DEVLOG.md`](DEVLOG.md) | 🇰🇷 Full build log — parts list, dead-ends, bugs, fixes, tips |
+| [`PLAN.md`](PLAN.md) | 🇰🇷 Design rationale & decisions |
+| [`PROGRESS.md`](PROGRESS.md) | 🇰🇷 Running journal + measured data (dashcam formats, bitrates) |
+| [`pi/RADXA_SETUP.md`](pi/RADXA_SETUP.md) | 🇰🇷 Exact reproduction procedure for the board |
+| [`pi/`](pi/) | BLE advertising + AP/BLE coexistence test scripts |
+| [`android/`](android/) | Android app skeleton (CompanionDeviceManager pairing works; sync/browse logic being rewritten) |
+
+The detailed engineering docs are kept in Korean; this README is the English entry point.
+
+---
+
+## Roadmap
+
+1. Rewrite the Android app's sync logic into a **clip browser** (event list → pick a camera → download one clip) against the board's file-serving endpoint.
+2. Surface **RecentClips** (continuous footage) in the web UI, not just saved/Sentry events.
+3. Optional hardware polish: always-on 12 V power to remove the cold-boot delay entirely.
+
+---
+
+## Credits & disclaimer
+
+Built on top of [**marcone/teslausb**](https://github.com/marcone/teslausb) (USB emulation + archiving), which is installed separately — this repo does not modify or redistribute it. Android proximity flow started from Google's `android/platform-samples`.
+
+Not affiliated with, endorsed by, or connected to Tesla, Inc. "Tesla" is used only to describe compatibility. Use at your own risk.
+
+## License
+
+[MIT](LICENSE) © 2026 Hyu
