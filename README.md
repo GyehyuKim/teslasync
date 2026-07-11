@@ -17,7 +17,7 @@ A Tesla saves dashcam and Sentry footage onto a USB stick you have to physically
 | Snapshot-based archiving + free-space management | ✅ Working |
 | Retrieval over WiFi (web browser + SMB) | ✅ Working |
 | Mobile-first dark web UI (touch targets, WCAG contrast) | ✅ Working |
-| Clip file API for the app (`pi/clipserver.py` — event list + range downloads) | ✅ Built, 17 tests passing · `/healthz` + install script added · 🚧 not yet deployed to the board |
+| Clip file API for the app (`pi/clipserver.py` — event list + range downloads) | ✅ Built, 15 tests passing · 🚧 not yet deployed to the board |
 | Android companion app (BLE proximity trigger + clip browser) | ✅ Builds · 🚧 not yet tested against the board |
 
 ---

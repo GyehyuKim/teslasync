@@ -12,17 +12,14 @@
 연결은 아직 안 함** (검증/미검증 구분 유지).
 
 **Phase 1 — `pi/clipserver.py` (신규, 파이썬 표준 라이브러리만)**
-- `GET /healthz`: 보드 배포 후 프로세스/아카이브 루트 접근 셀프체크
 - `GET /api/events`: SavedClips/SentryClips 이벤트 목록(최신순) + event.json
   메타(timestamp/street/reason) + 카메라별 클립·크기. 깨진 event.json은 폴더명 폴백
 - `GET /files/<타입>/<이벤트>/<파일>`: mp4/thumb.png 서빙, **Range(이어받기) 지원**
 - RecentClips/EncryptedClips/Photobooth는 화이트리스트로 원천 차단(PLAN 결정 반영),
   `../` 경로 탈출 차단. 아카이브가 `TeslaCam/` 하위에 쌓이는 배치도 자동 인식
-- ✅ **`python3 pi/test_clipserver.py` — 17개 테스트 전부 통과** (Python 3.9 로컬)
+- ✅ **`python3 pi/test_clipserver.py` — 15개 테스트 전부 통과** (Python 3.9 로컬)
 - `pi/clipserver.service`: systemd 유닛. 읽기전용 루트 대응으로 스크립트를
   `/mutable`에 두는 구성 (smbd 버그 때와 같은 교훈 적용)
-- `pi/install_clipserver.sh`: 보드에서 `sudo pi/install_clipserver.sh`로 `/mutable` 설치,
-  systemd enable/start, `/healthz` 확인까지 한 번에 수행
 
 **Phase 2 — Android 앱을 "클립 브라우저"로 재작성 (07-05 요구사항 변경 반영)**
 - 삭제: `SyncService`(자동 풀싱크 — 분당 266MB 실측으로 폐기된 UX),
