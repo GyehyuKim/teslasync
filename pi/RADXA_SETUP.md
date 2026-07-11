@@ -74,6 +74,34 @@ mount /var/cache/samba
 **검증**: `mount / -o remount,ro` 후 `systemctl restart smbd` → 정상 기동 확인,
 SMB 네트워크 접속도 정상 확인 (재부팅 시뮬레이션, 실제 재부팅 없이 검증)
 
+## 📱 클립 서버(clipserver) 배포 — Android 앱용 파일 API (2026-07-12 작성, ⚠️ 보드 미배포)
+Android 클립 브라우저가 쓰는 Phase 1 API. 코드는 이 레포 `pi/clipserver.py`
+(표준 라이브러리만 — 보드에 pip 불필요, python3만 있으면 됨). 로컬 15개 테스트
+통과 상태이며 **보드 실배포·실데이터 검증은 아직**.
+
+```bash
+# 루트가 읽기전용이므로 잠깐 풀고 작업 (smbd 수정 때와 동일 패턴)
+sudo mount / -o remount,rw
+
+# 스크립트는 항상 쓰기 가능한 /mutable에 (재부팅에도 유지됨)
+scp pi/clipserver.py <보드>:/mutable/clipserver.py
+scp pi/clipserver.service <보드>:/etc/systemd/system/clipserver.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now clipserver
+
+sudo mount / -o remount,ro   # 원복
+```
+
+**셀프체크** (폰/맥 브라우저 또는 curl):
+```bash
+curl http://<보드IP>:8080/api/events                       # 이벤트 목록 JSON
+curl -H "Range: bytes=0-99" -o /dev/null -w "%{http_code}" \
+     "http://<보드IP>:8080/files/SavedClips/<이벤트>/<파일>.mp4"   # 206이면 정상
+```
+- 아카이브 루트 기본값은 `/backingfiles/archive_share` — 다르면
+  `clipserver.service`의 `--root` 수정
+- Android `Config.kt`의 `API_BASE`가 AP 게이트웨이 IP + 이 포트(8080)를 가리켜야 함
+
 ## 🎨 UI/UX 개선 (2026-07-06 밤, design-review 방식으로 진행)
 사용자가 "fancyindex 목록이 못생겼다"고 지적 → 다크테마 CSS 작성·적용, 실제
 스크린샷으로 검증하며 반복 개선. git 저장소가 없는 원격 임베디드 보드라

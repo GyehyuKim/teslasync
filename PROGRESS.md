@@ -3,7 +3,40 @@
 차에 타면(BLE 근접) Tesla 대시캠 영상을 Android 폰으로 자동 import.
 설계 근거는 [PLAN.md](PLAN.md), 구성요소는 [README.md](README.md).
 
-마지막 업데이트: 2026-07-06 (밤)
+마지막 업데이트: 2026-07-12
+
+---
+
+## ✅ 2026-07-12 Phase 1 + Phase 2 구현: 파일 API 서버 + 앱 클립 브라우저 재작성
+로드맵의 두 미구현 단계를 코드로 만들었음. **로컬 검증만 완료 — 보드 배포·실기
+연결은 아직 안 함** (검증/미검증 구분 유지).
+
+**Phase 1 — `pi/clipserver.py` (신규, 파이썬 표준 라이브러리만)**
+- `GET /api/events`: SavedClips/SentryClips 이벤트 목록(최신순) + event.json
+  메타(timestamp/street/reason) + 카메라별 클립·크기. 깨진 event.json은 폴더명 폴백
+- `GET /files/<타입>/<이벤트>/<파일>`: mp4/thumb.png 서빙, **Range(이어받기) 지원**
+- RecentClips/EncryptedClips/Photobooth는 화이트리스트로 원천 차단(PLAN 결정 반영),
+  `../` 경로 탈출 차단. 아카이브가 `TeslaCam/` 하위에 쌓이는 배치도 자동 인식
+- ✅ **`python3 pi/test_clipserver.py` — 15개 테스트 전부 통과** (Python 3.9 로컬)
+- `pi/clipserver.service`: systemd 유닛. 읽기전용 루트 대응으로 스크립트를
+  `/mutable`에 두는 구성 (smbd 버그 때와 같은 교훈 적용)
+
+**Phase 2 — Android 앱을 "클립 브라우저"로 재작성 (07-05 요구사항 변경 반영)**
+- 삭제: `SyncService`(자동 풀싱크 — 분당 266MB 실측으로 폐기된 UX),
+  `NeoApi`(존재하지 않는 neo `/api/v1` 가정 — 보드 변경으로 무효화됐던 것)
+- 신규: `ClipApi`(clipserver 계약), `PiNet`(핫스팟 연결 공용 관리),
+  `ClipBrowserActivity`(이벤트 목록 → 탭 → 카메라 선택[front 우선, 세그먼트 수·MB
+  표시, 받은 것 ✓] → 단건 다운로드), `DownloadService`(선택 파일만 순차 다운로드,
+  진행률 알림, MediaStore IS_PENDING으로 부분 파일 노출 방지, 실패 시 부분 파일 삭제)
+- `CarCompanionService`: 근접 시 자동 다운로드 대신 **WiFi 사전 연결 + "클립 보기"
+  알림**으로 변경 (PLAN "준비만" 설계 그대로)
+- ✅ **`assembleDebug` 빌드 통과** (APK 5.5MB). ⚠️ 실기(폰↔보드) 검증 미완
+- `Config.kt`: `NEO_BASE` → `API_BASE`(`http://192.168.4.1:8080`) — AP 게이트웨이
+  IP/SSID는 여전히 "남은 미지수" (보드 AP 구성 후 교체)
+
+**다음 할 일**: ① 보드에 clipserver 배포(`pi/clipserver.service` 머리말 절차) 후
+폰 브라우저로 `/api/events` 셀프체크 ② 보드 AP 구성 → `Config.kt` 실값 반영 ③
+실기 페어링 + 클립 다운로드 검증
 
 ---
 

@@ -3,6 +3,7 @@ package com.example.teslasync
 import android.companion.AssociationRequest
 import android.companion.BluetoothLeDeviceFilter
 import android.companion.CompanionDeviceManager
+import android.content.Intent
 import android.content.IntentSender
 import android.os.Bundle
 import android.util.Log
@@ -40,10 +41,16 @@ class MainActivity : ComponentActivity() {
             text = "Pi 페어링 시작"
             setOnClickListener { startAssociation() }
         }
+        val browse = Button(this).apply {
+            text = "클립 브라우저 열기"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, ClipBrowserActivity::class.java))
+            }
+        }
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 96, 48, 48)
-            addView(status); addView(btn)
+            addView(status); addView(btn); addView(browse)
         })
         Permissions.requestAll(this)
     }

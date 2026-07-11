@@ -17,7 +17,8 @@ A Tesla saves dashcam and Sentry footage onto a USB stick you have to physically
 | Snapshot-based archiving + free-space management | ✅ Working |
 | Retrieval over WiFi (web browser + SMB) | ✅ Working |
 | Mobile-first dark web UI (touch targets, WCAG contrast) | ✅ Working |
-| Android companion app (BLE proximity trigger + one-tap download) | 🚧 In progress |
+| Clip file API for the app (`pi/clipserver.py` — event list + range downloads) | ✅ Built, 15 tests passing · 🚧 not yet deployed to the board |
+| Android companion app (BLE proximity trigger + clip browser) | ✅ Builds · 🚧 not yet tested against the board |
 
 ---
 
@@ -73,8 +74,8 @@ Full build story, decisions, and debugging write-ups (in Korean) are in [`DEVLOG
 | [`PLAN.md`](PLAN.md) | 🇰🇷 Design rationale & decisions |
 | [`PROGRESS.md`](PROGRESS.md) | 🇰🇷 Running journal + measured data (dashcam formats, bitrates) |
 | [`pi/RADXA_SETUP.md`](pi/RADXA_SETUP.md) | 🇰🇷 Exact reproduction procedure for the board |
-| [`pi/`](pi/) | BLE advertising + AP/BLE coexistence test scripts |
-| [`android/`](android/) | Android app skeleton (CompanionDeviceManager pairing works; sync/browse logic being rewritten) |
+| [`pi/`](pi/) | Clip file API server (`clipserver.py` + tests + systemd unit), BLE advertising, AP/BLE coexistence test scripts |
+| [`android/`](android/) | Android clip-browser app (CDM pairing → event list → pick a camera → download to gallery) |
 
 The detailed engineering docs are kept in Korean; this README is the English entry point.
 
@@ -82,7 +83,7 @@ The detailed engineering docs are kept in Korean; this README is the English ent
 
 ## Roadmap
 
-1. Rewrite the Android app's sync logic into a **clip browser** (event list → pick a camera → download one clip) against the board's file-serving endpoint.
+1. ~~Rewrite the Android app's sync logic into a **clip browser**~~ Done — a stdlib-only Python file API (`pi/clipserver.py`, range downloads, 15 tests) plus a rewritten app (event list → pick a camera → download one clip). Next: deploy the server to the board and validate phone ↔ board end-to-end.
 2. Surface **RecentClips** (continuous footage) in the web UI, not just saved/Sentry events.
 3. Optional hardware polish: always-on 12 V power to remove the cold-boot delay entirely.
 

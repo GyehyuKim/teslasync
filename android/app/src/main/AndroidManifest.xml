@@ -30,6 +30,17 @@
             </intent-filter>
         </activity>
 
+        <!-- 클립 브라우저: 이벤트 목록 → 카메라 선택 → 단건 다운로드 -->
+        <activity
+            android:name=".ClipBrowserActivity"
+            android:exported="false" />
+
+        <!-- 사용자가 고른 클립만 받아 MediaStore에 저장하는 포그라운드 서비스 -->
+        <service
+            android:name=".DownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
         <!-- Pi(BLE)가 근처에 오면 시스템이 자동 bind. "차에 탔다" 트리거. -->
         <service
             android:name=".CarCompanionService"
@@ -39,11 +50,5 @@
                 <action android:name="android.companion.CompanionDeviceService" />
             </intent-filter>
         </service>
-
-        <!-- 깨어난 뒤 WiFi 접속 + 클립 다운로드를 수행하는 포그라운드 서비스 -->
-        <service
-            android:name=".SyncService"
-            android:foregroundServiceType="dataSync"
-            android:exported="false" />
     </application>
 </manifest>
