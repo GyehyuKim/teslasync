@@ -78,6 +78,22 @@ class ClipServerTest(unittest.TestCase):
         conn.close()
         return resp, body
 
+    # ── /healthz ─────────────────────────────────────────────────
+
+    def test_healthz(self):
+        resp, body = self.request("/healthz")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["root"], self.root)
+        self.assertEqual(data["event_dirs"], {"SavedClips": True, "SentryClips": True})
+
+    def test_healthz_head(self):
+        resp, body = self.request("/healthz", method="HEAD")
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(body, b"")
+        self.assertEqual(resp.getheader("Content-Type"), "application/json; charset=utf-8")
+
     # ── /api/events ──────────────────────────────────────────────
 
     def test_events_listing_and_order(self):
