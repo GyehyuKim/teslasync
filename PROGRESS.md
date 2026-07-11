@@ -17,9 +17,13 @@
 - `GET /files/<타입>/<이벤트>/<파일>`: mp4/thumb.png 서빙, **Range(이어받기) 지원**
 - RecentClips/EncryptedClips/Photobooth는 화이트리스트로 원천 차단(PLAN 결정 반영),
   `../` 경로 탈출 차단. 아카이브가 `TeslaCam/` 하위에 쌓이는 배치도 자동 인식
-- ✅ **`python3 pi/test_clipserver.py` — 15개 테스트 전부 통과** (Python 3.9 로컬)
+- `GET /healthz`: 배포 셀프체크 — `/api/events`는 루트가 없어도 빈 목록 200이라
+  배포 실패를 못 잡아서 별도로 둠 (ok/root/event_dirs 반환)
+- ✅ **`python3 pi/test_clipserver.py` — 18개 테스트 전부 통과** (Python 3.9 로컬)
 - `pi/clipserver.service`: systemd 유닛. 읽기전용 루트 대응으로 스크립트를
   `/mutable`에 두는 구성 (smbd 버그 때와 같은 교훈 적용)
+- `pi/install_clipserver.sh`: 보드 checkout에서 `sudo pi/install_clipserver.sh` 한 번으로
+  설치→enable/start→`/healthz` 확인. `/`가 읽기전용이면 rw로 풀었다가 **원복**까지 함
 
 **Phase 2 — Android 앱을 "클립 브라우저"로 재작성 (07-05 요구사항 변경 반영)**
 - 삭제: `SyncService`(자동 풀싱크 — 분당 266MB 실측으로 폐기된 UX),
@@ -34,8 +38,8 @@
 - `Config.kt`: `NEO_BASE` → `API_BASE`(`http://192.168.4.1:8080`) — AP 게이트웨이
   IP/SSID는 여전히 "남은 미지수" (보드 AP 구성 후 교체)
 
-**다음 할 일**: ① 보드에 clipserver 배포(`pi/clipserver.service` 머리말 절차) 후
-폰 브라우저로 `/api/events` 셀프체크 ② 보드 AP 구성 → `Config.kt` 실값 반영 ③
+**다음 할 일**: ① 보드에 clipserver 배포(`sudo pi/install_clipserver.sh`) 후
+폰 브라우저로 `/healthz` → `/api/events` 셀프체크 ② 보드 AP 구성 → `Config.kt` 실값 반영 ③
 실기 페어링 + 클립 다운로드 검증
 
 ---

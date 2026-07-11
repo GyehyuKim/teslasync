@@ -78,6 +78,28 @@ class ClipServerTest(unittest.TestCase):
         conn.close()
         return resp, body
 
+    # ── /healthz ─────────────────────────────────────────────────
+
+    def test_healthz(self):
+        resp, body = self.request("/healthz")
+        self.assertEqual(resp.status, 200)
+        data = json.loads(body)
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["event_dirs"],
+                         {"SavedClips": True, "SentryClips": True})
+
+    def test_healthz_head(self):
+        resp, body = self.request("/healthz", method="HEAD")
+        self.assertEqual(resp.status, 200)
+        self.assertEqual(body, b"")
+
+    def test_healthz_missing_root(self):
+        # 배포 실패(아카이브 루트 없음)를 ok:false로 잡아야 함
+        h = clipserver.health(os.path.join(self.root, "no-such-dir"))
+        self.assertFalse(h["ok"])
+        self.assertEqual(h["event_dirs"],
+                         {"SavedClips": False, "SentryClips": False})
+
     # ── /api/events ──────────────────────────────────────────────
 
     def test_events_listing_and_order(self):

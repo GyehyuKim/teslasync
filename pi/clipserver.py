@@ -4,6 +4,7 @@
 Android 앱("클립 브라우저")이 쓰는 최소 API. 표준 라이브러리만 사용 —
 보드(Armbian)에 python3만 있으면 되고 pip 불필요.
 
+    GET /healthz              배포 셀프체크 (프로세스 살아있음 + 아카이브 루트 접근)
     GET /api/events?limit=N   SavedClips/SentryClips 이벤트 목록 (JSON, 최신순)
     GET /files/<타입>/<이벤트>/<파일>   개별 파일 (mp4/thumb.png, Range 지원)
 
@@ -83,6 +84,16 @@ def scan_events(root, limit=100):
     return events[:limit]
 
 
+def health(root):
+    """배포 직후 curl 한 번으로 확인할 최소 상태. /api/events는 루트가 없어도
+    빈 목록 200이라 배포 실패를 못 잡는다 — 그래서 별도 엔드포인트."""
+    return {
+        "ok": os.path.isdir(root),
+        "root": root,
+        "event_dirs": {t: find_type_dir(root, t) is not None for t in EVENT_TYPES},
+    }
+
+
 def resolve_file(root, rel):
     """<타입>/<이벤트>/<파일> → 실제 경로. 화이트리스트 밖/탈출 경로는 None."""
     parts = [unquote(p) for p in rel.split("/")]
@@ -138,7 +149,9 @@ class ClipHandler(BaseHTTPRequestHandler):
 
     def _handle(self, head):
         url = urlparse(self.path)
-        if url.path == "/api/events":
+        if url.path == "/healthz":
+            self._send_json(health(self.root), head)
+        elif url.path == "/api/events":
             self._send_events(url, head)
         elif url.path.startswith("/files/"):
             self._send_file(url.path[len("/files/"):], head)
@@ -150,7 +163,10 @@ class ClipHandler(BaseHTTPRequestHandler):
             limit = max(1, int(parse_qs(url.query).get("limit", ["100"])[0]))
         except ValueError:
             limit = 100
-        body = json.dumps(scan_events(self.root, limit)).encode("utf-8")
+        self._send_json(scan_events(self.root, limit), head)
+
+    def _send_json(self, value, head):
+        body = json.dumps(value).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
