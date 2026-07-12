@@ -87,6 +87,9 @@ class ClipServerTest(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertEqual(data["event_dirs"],
                          {"SavedClips": True, "SentryClips": True})
+        # events = 폴더 수(populated-ness). clip 필터 안 함 — SavedClips엔 빈
+        # 이벤트 폴더(2026-01-01)도 있어 2, /api/events(=1)와 의도적으로 다름.
+        self.assertEqual(data["events"], {"SavedClips": 2, "SentryClips": 1})
 
     def test_healthz_head(self):
         resp, body = self.request("/healthz", method="HEAD")
@@ -99,6 +102,21 @@ class ClipServerTest(unittest.TestCase):
         self.assertFalse(h["ok"])
         self.assertEqual(h["event_dirs"],
                          {"SavedClips": False, "SentryClips": False})
+        self.assertEqual(h["events"], {"SavedClips": 0, "SentryClips": 0})
+
+    def test_healthz_empty_archive_flagged(self):
+        # 폴더는 있는데 이벤트 0 (아카이브 비었음/루트 오배치) — event_dirs 만으론
+        # ok:true 로 통과하지만 events 카운트가 이 배포 문제를 드러내야 한다.
+        empty = tempfile.mkdtemp(prefix="clipserver-empty-")
+        try:
+            os.makedirs(os.path.join(empty, "SavedClips"))
+            os.makedirs(os.path.join(empty, "SentryClips"))
+            h = clipserver.health(empty)
+            self.assertTrue(h["ok"])
+            self.assertEqual(h["event_dirs"], {"SavedClips": True, "SentryClips": True})
+            self.assertEqual(h["events"], {"SavedClips": 0, "SentryClips": 0})
+        finally:
+            shutil.rmtree(empty)
 
     # ── /api/events ──────────────────────────────────────────────
 

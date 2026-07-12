@@ -86,11 +86,22 @@ def scan_events(root, limit=100):
 
 def health(root):
     """배포 직후 curl 한 번으로 확인할 최소 상태. /api/events는 루트가 없어도
-    빈 목록 200이라 배포 실패를 못 잡는다 — 그래서 별도 엔드포인트."""
+    빈 목록 200이라 배포 실패를 못 잡는다 — 그래서 별도 엔드포인트.
+
+    events = 타입별 이벤트 폴더 수. event_dirs 만으론 "폴더는 있는데 0개"
+    (루트 오배치 / 아카이브 비었음)가 ok:true 로 통과해버린다 — 그 구멍을 메운다.
+    (clip 유무까지 필터하지 않는 가벼운 populated-ness 신호)"""
+    dirs, counts = {}, {}
+    for t in EVENT_TYPES:
+        d = find_type_dir(root, t)
+        dirs[t] = d is not None
+        counts[t] = sum(os.path.isdir(os.path.join(d, n))
+                        for n in os.listdir(d)) if d else 0
     return {
         "ok": os.path.isdir(root),
         "root": root,
-        "event_dirs": {t: find_type_dir(root, t) is not None for t in EVENT_TYPES},
+        "event_dirs": dirs,
+        "events": counts,
     }
 
 
