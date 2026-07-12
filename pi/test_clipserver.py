@@ -174,6 +174,15 @@ class ClipServerTest(unittest.TestCase):
         self.assertEqual(resp.status, 206)
         self.assertEqual(body, FRONT[10:])
 
+    def test_resume_reassembles_full_file(self):
+        # 이어받기 계약: [0,k) 와 [k,end] 두 Range 를 이으면 원본과 바이트 동일해야
+        # 한다 — 다운로드 신뢰성(중단 후 재개)이 이 계약에 기댄다.
+        k = 10
+        r1, part1 = self.request(self.FRONT_PATH, {"Range": "bytes=0-%d" % (k - 1)})
+        r2, part2 = self.request(self.FRONT_PATH, {"Range": "bytes=%d-" % k})
+        self.assertEqual((r1.status, r2.status), (206, 206))
+        self.assertEqual(part1 + part2, FRONT)
+
     def test_range_suffix(self):
         resp, body = self.request(self.FRONT_PATH, {"Range": "bytes=-4"})
         self.assertEqual(resp.status, 206)
