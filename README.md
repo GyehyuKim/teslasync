@@ -17,8 +17,8 @@ A Tesla saves dashcam and Sentry footage onto a USB stick you have to physically
 | Snapshot-based archiving + free-space management | ✅ Working |
 | Retrieval over WiFi (web browser + SMB) | ✅ Working |
 | Mobile-first dark web UI (touch targets, WCAG contrast) | ✅ Working |
-| Clip file API for the app (`pi/clipserver.py` — event list + range downloads) | ✅ Built, 18 tests passing, one-command install script + `/healthz` · 🚧 not yet deployed to the board |
-| Android companion app (BLE proximity trigger + clip browser) | ✅ Builds · 🚧 not yet tested against the board |
+| Clip file API for the app (`pi/clipserver.py` — event list + range downloads) | ✅ Built, 20 tests passing, one-command install script + `/healthz` · 🚧 not yet deployed to the board |
+| Android companion app (BLE proximity trigger + clip browser) | ✅ Builds · downloads status-checked, complete-or-retry · 🚧 reliability change inspection-verified (not rebuilt in this run), not yet device-tested |
 
 ---
 
@@ -83,7 +83,7 @@ The detailed engineering docs are kept in Korean; this README is the English ent
 
 ## Roadmap
 
-1. ~~Rewrite the Android app's sync logic into a **clip browser**~~ Done — a stdlib-only Python file API (`pi/clipserver.py`, range downloads, 15 tests) plus a rewritten app (event list → pick a camera → download one clip). Next: deploy the server to the board and validate phone ↔ board end-to-end.
+1. ~~Rewrite the Android app's sync logic into a **clip browser**~~ Done — a stdlib-only Python file API (`pi/clipserver.py`, range downloads, 20 tests) plus a rewritten app (event list → pick a camera → download one clip, with status-checked / complete-or-retry downloads). Next: deploy the server to the board and validate phone ↔ board end-to-end.
 2. Surface **RecentClips** (continuous footage) in the web UI, not just saved/Sentry events.
 3. Optional hardware polish: always-on 12 V power to remove the cold-boot delay entirely.
 

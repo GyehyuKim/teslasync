@@ -7,6 +7,22 @@
 
 ---
 
+## ✅ 2026-07-12 clip-browser main 병합 + 다운로드 신뢰성 고도화
+- **병합**: `worktree-clip-browser`(clipserver + 앱 클립 브라우저)를 PR #1로 main에
+  통합 (merge commit `7c033c5`). revert 흔적(d811b32→b5a84c6) 보존, 최종 코드는
+  `ab1d9f2`/`587df5d` 기준.
+- **다운로드 신뢰성** (`download-reliability` 브랜치):
+  - `ClipApi.openFile`: HTTP status 검증 — 전체 200 / Range 206 아니면 IOException
+    (404/416/500을 조용히 흘려 엉뚱한 바이트를 클립으로 저장하지 않게)
+  - `DownloadService`: 받은 바이트 == 총 크기 검증(연결 끊김에 의한 **조용한 잘림**
+    차단 — 잘린 클립이 '완료'로 갤러리에 저장되던 위험) + 클립당 3회 재시도(백오프)
+  - `pi/test_clipserver.py`: 이어받기(Range) 재조립 계약 테스트 추가
+- **검증**: `python3 pi/test_clipserver.py` **20개 통과**. Android 빌드는
+  **비대화형 세션의 승인 게이트 때문에 실행 불가** → Kotlin 변경은 **인스펙션으로만
+  검증**(재빌드는 실기 준비 시 필요).
+
+---
+
 ## ✅ 2026-07-12 Phase 1 + Phase 2 구현: 파일 API 서버 + 앱 클립 브라우저 재작성
 로드맵의 두 미구현 단계를 코드로 만들었음. **로컬 검증만 완료 — 보드 배포·실기
 연결은 아직 안 함** (검증/미검증 구분 유지).
@@ -19,7 +35,7 @@
   `../` 경로 탈출 차단. 아카이브가 `TeslaCam/` 하위에 쌓이는 배치도 자동 인식
 - `GET /healthz`: 배포 셀프체크 — `/api/events`는 루트가 없어도 빈 목록 200이라
   배포 실패를 못 잡아서 별도로 둠 (ok/root/event_dirs 반환)
-- ✅ **`python3 pi/test_clipserver.py` — 18개 테스트 전부 통과** (Python 3.9 로컬)
+- ✅ **`python3 pi/test_clipserver.py` — 20개 테스트 전부 통과** (Python 3.9 로컬)
 - `pi/clipserver.service`: systemd 유닛. 읽기전용 루트 대응으로 스크립트를
   `/mutable`에 두는 구성 (smbd 버그 때와 같은 교훈 적용)
 - `pi/install_clipserver.sh`: 보드 checkout에서 `sudo pi/install_clipserver.sh` 한 번으로

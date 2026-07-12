@@ -45,16 +45,24 @@ class DownloadService : Service() {
             val job = queue.poll() ?: break
             index++
             val name = job.relPath.substringAfterLast('/')
-            try {
-                api.openFile(job.relPath).use { input ->
-                    saveToGallery(name, input, job.size, "($index) $name")
+            var ok = false
+            var attempt = 0
+            while (attempt < MAX_ATTEMPTS && !ok) {
+                attempt++
+                try {
+                    api.openFile(job.relPath).use { input ->
+                        saveToGallery(name, input, job.size, "($index) $name")
+                    }
+                    ok = true
+                } catch (e: Exception) {
+                    // status 오류·연결 끊김·불완전 다운로드 전부 여기로 — 부분 파일은
+                    // saveToGallery가 이미 지웠으니, 통째로 다시 받는다(백오프).
+                    Log.w("TeslaSync", "다운로드 실패(시도 $attempt/$MAX_ATTEMPTS): ${job.relPath}", e)
+                    if (attempt < MAX_ATTEMPTS)
+                        try { Thread.sleep(1000L * attempt) } catch (_: InterruptedException) {}
                 }
-                SyncState.markSynced(this, job.relPath)
-                saved++
-            } catch (e: Exception) {
-                Log.e("TeslaSync", "다운로드 실패: ${job.relPath}", e)
-                failed++
             }
+            if (ok) { SyncState.markSynced(this, job.relPath); saved++ } else failed++
         }
         val summary = "저장 ${saved}개" + if (failed > 0) " · 실패 ${failed}개" else ""
         Log.i("TeslaSync", "다운로드 종료: $summary")
@@ -91,6 +99,10 @@ class DownloadService : Service() {
                         }
                     }
                 }
+                // 연결이 중간에 끊기면 read()가 -1을 조기 반환할 수 있다 —
+                // 잘린 파일을 '완료'로 저장하지 않도록 받은 바이트 수를 검증.
+                if (total > 0 && done != total)
+                    throw IOException("불완전 다운로드: $done/$total bytes")
             } ?: throw IOException("출력 스트림 열기 실패")
             values.clear()
             values.put(MediaStore.Video.Media.IS_PENDING, 0)
@@ -122,6 +134,7 @@ class DownloadService : Service() {
         private const val CH = "download"
         private const val NOTIF_ID = 1
         private const val DONE_NOTIF_ID = 3
+        private const val MAX_ATTEMPTS = 3  // 클립당 재시도(백오프)
         private const val EXTRA_PATHS = "paths"
         private const val EXTRA_SIZES = "sizes"
 
