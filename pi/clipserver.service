@@ -1,0 +1,20 @@
+# TeslaSync 클립 서버 systemd 유닛
+# 배포: 보드의 repo checkout에서 `sudo pi/install_clipserver.sh`
+#       (설치 + enable/start + /healthz 셀프체크까지 한 번에)
+# 주의: teslausb는 루트를 읽기전용으로 만들므로 스크립트는 항상 쓰기 가능한
+#       /mutable에 둔다 (smbd 버그 수정 때와 같은 이유 — RADXA_SETUP.md 참고).
+#       /etc는 설치 시점에만 쓰면 되므로 필요하면 `mount / -o remount,rw` 후 복사.
+[Unit]
+Description=TeslaSync clip server (Phase 1 file API)
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /mutable/clipserver.py --root /backingfiles/archive_share --port 8080
+Restart=on-failure
+RestartSec=3
+# 아카이브 읽기만 하면 됨 — 쓰기 권한 불필요
+ProtectSystem=strict
+ReadOnlyPaths=/backingfiles
+
+[Install]
+WantedBy=multi-user.target
